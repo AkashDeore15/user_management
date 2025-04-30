@@ -1,5 +1,5 @@
 # Define a base stage with a Debian Bookworm base image that includes the latest glibc update
-FROM python:3.12-bookworm as base
+FROM python:3.12-slim-bookworm AS base
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -11,11 +11,10 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /myapp
 
-# Update system and specifically upgrade libc-bin to the required security patch version
+# Update system and install required packages without pinning the libc-bin version
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
-    && apt-get install -y libc-bin=2.36-9+deb12u7 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,10 +26,11 @@ RUN python -m venv /.venv \
     && pip install -r requirements.txt
 
 # Define a second stage for the runtime, using the same Debian Bookworm slim image
-FROM python:3.12-slim-bookworm as final
+FROM python:3.12-slim-bookworm AS final
 
-# Upgrade libc-bin in the final stage to ensure security patch is applied
-RUN apt-get update && apt-get install -y libc-bin=2.36-9+deb12u7 \
+# Install required packages without pinning the libc-bin version
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -52,6 +52,11 @@ USER myuser
 
 # Copy application code with appropriate ownership
 COPY --chown=myuser:myuser . .
+
+# Create qr_codes directory and ensure proper permissions
+USER root
+RUN mkdir -p ${QR_CODE_DIR} && chown -R myuser:myuser ${QR_CODE_DIR}
+USER myuser
 
 # Inform Docker that the container listens on the specified port at runtime.
 EXPOSE 8000
