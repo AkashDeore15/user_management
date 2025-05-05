@@ -236,5 +236,6 @@ def email_service():
         # Otherwise, use a mock to prevent actual email sending
         mock_service = AsyncMock(spec=EmailService)
         mock_service.send_verification_email.return_value = None
+        mock_service.send_password_reset_email.return_value = None
         mock_service.send_user_email.return_value = None
         return mock_service

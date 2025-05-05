@@ -10,7 +10,7 @@ from app.dependencies import get_email_service, get_settings
 from app.models.user_model import User
 from app.schemas.user_schemas import UserCreate, UserUpdate
 from app.utils.nickname_gen import generate_nickname
-from app.utils.security import generate_verification_token, hash_password, verify_password
+from app.utils.security import generate_password_reset_token, generate_verification_token, hash_password, verify_password
 from uuid import UUID
 from app.services.email_service import EmailService
 from app.models.user_model import UserRole
@@ -232,3 +232,102 @@ class UserService:
             await session.commit()
             return True
         return False
+
+    @classmethod
+    async def generate_password_reset(cls, session: AsyncSession, email: str) -> Optional[User]:
+        """
+        Generate a password reset token for a user.
+        
+        Args:
+            session: Database session
+            email: User's email address
+            
+        Returns:
+            Optional[User]: The user with the reset token, or None if not found
+        """
+        user = await cls.get_by_email(session, email)
+        if not user:
+            logger.warning(f"Password reset requested for non-existent email: {email}")
+            return None
+            
+        token, expiry = generate_password_reset_token()
+        user.password_reset_token = token
+        user.password_reset_token_expires_at = expiry
+        
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        
+        logger.info(f"Password reset token generated for user {email}")
+        return user
+
+    @classmethod
+    async def verify_password_reset_token(cls, session: AsyncSession, user_id: UUID, token: str) -> bool:
+        """
+        Verify if a password reset token is valid and not expired.
+        
+        Args:
+            session: Database session
+            user_id: UUID of the user
+            token: Password reset token
+            
+        Returns:
+            bool: True if token is valid and not expired, False otherwise
+        """
+        try:
+            user = await cls.get_by_id(session, user_id)
+            if not user:
+                logger.warning(f"User {user_id} not found for password reset verification")
+                return False
+                
+            current_time = datetime.now(timezone.utc)
+            
+            if user.password_reset_token == token and user.password_reset_token_expires_at > current_time:
+                logger.info(f"Valid password reset token for user {user_id}")
+                return True
+            
+            if user.password_reset_token_expires_at <= current_time:
+                logger.warning(f"Expired password reset token used for user {user_id}")
+            else:
+                logger.warning(f"Invalid password reset token used for user {user_id}")
+                
+            return False
+        except Exception as e:
+            logger.error(f"Error during password reset token verification for user {user_id}: {str(e)}")
+            await session.rollback()
+            return False
+
+    @classmethod
+    async def reset_password_with_token(cls, session: AsyncSession, user_id: UUID, token: str, new_password: str) -> bool:
+        """
+        Reset a user's password using a valid token.
+        
+        Args:
+            session: Database session
+            user_id: UUID of the user
+            token: Password reset token
+            new_password: New password to set
+            
+        Returns:
+            bool: True if password was reset successfully, False otherwise
+        """
+        try:
+            if not await cls.verify_password_reset_token(session, user_id, token):
+                return False
+                
+            user = await cls.get_by_id(session, user_id)
+            user.hashed_password = hash_password(new_password)
+            user.password_reset_token = None
+            user.password_reset_token_expires_at = None
+            user.failed_login_attempts = 0
+            user.is_locked = False
+            
+            session.add(user)
+            await session.commit()
+            
+            logger.info(f"Password successfully reset for user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error during password reset for user {user_id}: {str(e)}")
+            await session.rollback()
+            return False
