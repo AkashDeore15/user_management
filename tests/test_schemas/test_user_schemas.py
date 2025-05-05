@@ -108,3 +108,27 @@ def test_user_base_url_invalid(url, user_base_data):
     user_base_data["profile_picture_url"] = url
     with pytest.raises(ValidationError):
         UserBase(**user_base_data)
+
+@pytest.mark.parametrize("nickname", [
+    "test_user", 
+    "test-user", 
+    "testuser123", 
+    "a" * 50  # Maximum length
+])
+def test_user_base_nickname_valid(nickname, user_base_data):
+    user_base_data["nickname"] = nickname
+    user = UserBase(**user_base_data)
+    assert user.nickname == nickname
+
+@pytest.mark.parametrize("nickname,error_type", [
+    ("test user", "string_pattern_mismatch"),
+    ("test?user", "string_pattern_mismatch"),
+    ("", "string_too_short"),
+    ("us", "string_too_short"),
+    ("a" * 51, "string_too_long")
+])
+def test_user_base_nickname_invalid(nickname, error_type, user_base_data):
+    user_base_data["nickname"] = nickname
+    with pytest.raises(ValidationError) as excinfo:
+        UserBase(**user_base_data)
+    assert error_type in str(excinfo.value)
