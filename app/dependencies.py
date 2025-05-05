@@ -45,9 +45,28 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     return {"user_id": user_id, "role": user_role}
 
-def require_role(role: str):
+def require_role(roles):
+    """
+    Dependency that checks if the current user has one of the required roles.
+    
+    Args:
+        roles: A string or list of roles that are allowed to access the endpoint.
+    """
+    # Convert to list if a single role was provided
+    if isinstance(roles, str):
+        roles = [roles]
+    
     def role_checker(current_user: dict = Depends(get_current_user)):
-        if current_user["role"] not in role:
-            raise HTTPException(status_code=403, detail="Operation not permitted")
+        # Get user role from the token and convert to uppercase for consistent comparison
+        user_role = current_user.get("role", "").upper()
+        
+        # Convert all required roles to uppercase for consistent comparison
+        required_roles = [r.upper() for r in roles]
+        
+        if user_role not in required_roles:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Operation not permitted. Required roles: {', '.join(roles)}"
+            )
         return current_user
     return role_checker
