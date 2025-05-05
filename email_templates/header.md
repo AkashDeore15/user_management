@@ -1,6 +1,6 @@
-![Your Company Logo](http://example.com/path/to/your/logo.png)
+![Your Company Logo](https://www.bing.com/images/search?q=Logo+Free+Download&FORM=IRIBIP)
 
-# Welcome to [Your Company Name]
+# Welcome to XYZ
 
 ---
 

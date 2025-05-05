@@ -20,8 +20,10 @@ Key Highlights:
 
 from builtins import dict, int, len, str
 from datetime import timedelta
+import logging
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Response, logger, status, Request
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_current_user, get_db, get_email_service, require_role
@@ -33,6 +35,8 @@ from app.services.jwt_service import create_access_token
 from app.utils.link_generation import create_user_links, generate_pagination_links
 from app.dependencies import get_settings
 from app.services.email_service import EmailService
+import urllib.parse
+
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 settings = get_settings()
@@ -108,7 +112,6 @@ async def update_user(user_id: UUID, user_update: UserUpdate, request: Request, 
         links=create_user_links(updated_user.id, request)
     )
 
-
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT, name="delete_user", tags=["User Management Requires (Admin or Manager Roles)"])
 async def delete_user(user_id: UUID, db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme), current_user: dict = Depends(require_role(["ADMIN", "MANAGER"]))):
     """
@@ -120,8 +123,6 @@ async def delete_user(user_id: UUID, db: AsyncSession = Depends(get_db), token: 
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
 
 @router.post("/users/", response_model=UserResponse, status_code=status.HTTP_201_CREATED, tags=["User Management Requires (Admin or Manager Roles)"], name="create_user")
 async def create_user(user: UserCreate, request: Request, db: AsyncSession = Depends(get_db), email_service: EmailService = Depends(get_email_service), token: str = Depends(oauth2_scheme), current_user: dict = Depends(require_role(["ADMIN", "MANAGER"]))):
@@ -148,7 +149,6 @@ async def create_user(user: UserCreate, request: Request, db: AsyncSession = Dep
     if not created_user:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user")
     
-    
     return UserResponse.model_construct(
         id=created_user.id,
         bio=created_user.bio,
@@ -163,7 +163,6 @@ async def create_user(user: UserCreate, request: Request, db: AsyncSession = Dep
         updated_at=created_user.updated_at,
         links=create_user_links(created_user.id, request)
     )
-
 
 @router.get("/users/", response_model=UserListResponse, tags=["User Management Requires (Admin or Manager Roles)"])
 async def list_users(
@@ -190,7 +189,6 @@ async def list_users(
         size=len(user_responses),
         links=pagination_links  # Ensure you have appropriate logic to create these links
     )
-
 
 @router.post("/register/", response_model=UserResponse, tags=["Login and Registration"])
 async def register(user_data: UserCreate, session: AsyncSession = Depends(get_db), email_service: EmailService = Depends(get_email_service)):
@@ -233,15 +231,59 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Async
         return {"access_token": access_token, "token_type": "bearer"}
     raise HTTPException(status_code=401, detail="Incorrect email or password.")
 
-
 @router.get("/verify-email/{user_id}/{token}", status_code=status.HTTP_200_OK, name="verify_email", tags=["Login and Registration"])
-async def verify_email(user_id: UUID, token: str, db: AsyncSession = Depends(get_db), email_service: EmailService = Depends(get_email_service)):
+async def verify_email(user_id: UUID, token: str, db: AsyncSession = Depends(get_db)):
     """
     Verify user's email with a provided token.
     
     - **user_id**: UUID of the user to verify.
     - **token**: Verification token sent to the user's email.
     """
-    if await UserService.verify_email_with_token(db, user_id, token):
-        return {"message": "Email verified successfully"}
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired verification token")
+    logger = logging.getLogger(__name__)
+    logger.info(f"Attempting to verify email for user_id: {user_id}, token: {token}")
+    
+    try:
+        # First, check if user exists
+        user = await UserService.get_by_id(db, user_id)
+        if not user:
+            logger.error(f"User with ID {user_id} not found during email verification")
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={"message": "User not found. The verification link may be invalid or the user account has been deleted."}
+            )
+        
+        # Log the stored verification token for debugging
+        logger.info(f"Found user: {user.email}, stored token: {user.verification_token}")
+        
+        # Try to verify with the token
+        verification_result = await UserService.verify_email_with_token(db, user_id, token)
+        
+        if verification_result:
+            logger.info(f"Email verified successfully for user {user_id}")
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    "message": "Email verified successfully!",
+                    "details": "Your account has been activated. You can now log in to your account."
+                }
+            )
+        else:
+            # If verification failed but user exists, the token must be invalid
+            logger.warning(f"Invalid token for user {user_id}. Expected: {user.verification_token}, Got: {token}")
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "message": "Invalid verification token",
+                    "details": "The verification link may be expired or has already been used."
+                }
+            )
+            
+    except Exception as e:
+        logger.error(f"Exception during email verification: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "message": "Server error",
+                "details": "An unexpected error occurred while processing your verification request."
+            }
+        )

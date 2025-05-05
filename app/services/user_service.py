@@ -68,13 +68,17 @@ class UserService:
             new_user.role = UserRole.ADMIN if user_count == 0 else UserRole.ANONYMOUS            
             if new_user.role == UserRole.ADMIN:
                 new_user.email_verified = True
-
             else:
                 new_user.verification_token = generate_verification_token()
-                await email_service.send_verification_email(new_user)
 
             session.add(new_user)
             await session.commit()
+            await session.refresh(new_user)
+            
+            # Send verification email only after user is committed to the database and has an ID
+            if new_user.role != UserRole.ADMIN and new_user.verification_token:
+                await email_service.send_verification_email(new_user)
+                
             return new_user
         except ValidationError as e:
             logger.error(f"Validation error during user creation: {e}")
@@ -166,15 +170,44 @@ class UserService:
 
     @classmethod
     async def verify_email_with_token(cls, session: AsyncSession, user_id: UUID, token: str) -> bool:
-        user = await cls.get_by_id(session, user_id)
-        if user and user.verification_token == token:
-            user.email_verified = True
-            user.verification_token = None  # Clear the token once used
-            user.role = UserRole.AUTHENTICATED
-            session.add(user)
-            await session.commit()
-            return True
-        return False
+        """
+        Verify a user's email with the provided token.
+        
+        Args:
+            session: Database session
+            user_id: UUID of the user
+            token: Verification token sent to the user's email
+            
+        Returns:
+            bool: True if verification successful, False otherwise
+        """
+        try:
+            logger.info(f"Looking up user {user_id} for email verification")
+            user = await cls.get_by_id(session, user_id)
+            
+            if not user:
+                logger.warning(f"User {user_id} not found for email verification")
+                return False
+                
+            logger.info(f"Comparing provided token with stored token for user {user_id}")
+            if user.verification_token == token:
+                logger.info(f"Token matched for user {user_id}, verifying email")
+                
+                user.email_verified = True
+                user.verification_token = None  # Clear the token once used
+                user.role = UserRole.AUTHENTICATED
+                
+                session.add(user)
+                await session.commit()
+                logger.info(f"Email verified successfully for user {user_id}")
+                return True
+            else:
+                logger.warning(f"Token mismatch for user {user_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Error during email verification for user {user_id}: {str(e)}")
+            await session.rollback()
+            return False
 
     @classmethod
     async def count(cls, session: AsyncSession) -> int:
