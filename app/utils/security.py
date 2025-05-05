@@ -1,5 +1,6 @@
 # app/security.py
 from builtins import Exception, ValueError, bool, int, str
+from datetime import datetime, timedelta, timezone
 import secrets
 import bcrypt
 from logging import getLogger
@@ -51,3 +52,17 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def generate_verification_token():
     return secrets.token_urlsafe(16)  # Generates a secure 16-byte URL-safe token
+
+def generate_password_reset_token(expiry_minutes: int = 30) -> tuple[str, datetime]:
+    """
+    Generates a secure token for password reset with an expiration time.
+    
+    Args:
+        expiry_minutes (int): Minutes until the token expires.
+        
+    Returns:
+        tuple: (token, expiry_datetime)
+    """
+    token = secrets.token_urlsafe(32)  # Using longer token for better security
+    expiry = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
+    return token, expiry

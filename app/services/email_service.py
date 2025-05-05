@@ -1,4 +1,5 @@
 # email_service.py
+from datetime import datetime, timezone
 import urllib.parse
 from builtins import ValueError, dict, str
 from settings.config import settings
@@ -48,3 +49,22 @@ class EmailService:
             "verification_url": verification_url,
             "email": user.email
         }, 'email_verification')
+
+    async def send_password_reset_email(self, user: User):
+        """
+        Send a password reset email to the user.
+        
+        Args:
+            user: User to send the email to
+        """
+        token = urllib.parse.quote(user.password_reset_token) if user.password_reset_token else ""
+        reset_url = f"{settings.server_base_url}reset-password/{user.id}/{token}"
+        
+        logger.info(f"Generated password reset URL: {reset_url}")
+        
+        await self.send_user_email({
+            "name": user.first_name or "User",
+            "reset_url": reset_url,
+            "email": user.email,
+            "expiry_minutes": int((user.password_reset_token_expires_at - datetime.now(timezone.utc)).total_seconds() / 60)
+        }, 'password_reset')

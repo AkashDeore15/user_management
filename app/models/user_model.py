@@ -73,7 +73,8 @@ class User(Base):
     verification_token = Column(String, nullable=True)
     email_verified: Mapped[bool] = Column(Boolean, default=False, nullable=False)
     hashed_password: Mapped[str] = Column(String(255), nullable=False)
-
+    password_reset_token: Mapped[str] = Column(String, nullable=True)
+    password_reset_token_expires_at: Mapped[datetime] = Column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self) -> str:
         """Provides a readable representation of a user object."""

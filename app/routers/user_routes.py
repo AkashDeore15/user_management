@@ -22,7 +22,7 @@ from builtins import dict, int, len, str
 from datetime import timedelta
 import logging
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Response, logger, status, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Response, logger, status, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +40,8 @@ import urllib.parse
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
 @router.get("/users/{user_id}", response_model=UserResponse, name="get_user", tags=["User Management Requires (Admin or Manager Roles)"])
 async def get_user(user_id: UUID, request: Request, db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme), current_user: dict = Depends(require_role(["ADMIN", "MANAGER"]))):
     """
@@ -287,3 +289,89 @@ async def verify_email(user_id: UUID, token: str, db: AsyncSession = Depends(get
                 "details": "An unexpected error occurred while processing your verification request."
             }
         )
+
+@router.post("/forgot-password/", status_code=status.HTTP_200_OK, tags=["Login and Registration"])
+async def request_password_reset(email: str = Form(...), db: AsyncSession = Depends(get_db), email_service: EmailService = Depends(get_email_service)):
+    """
+    Request a password reset email.
+    
+    - **email**: Email address of the account
+    """
+    logger.info(f"Password reset requested for email: {email}")
+    
+    # Process the request even if the email doesn't exist to prevent email enumeration
+    user = await UserService.generate_password_reset(db, email)
+    
+    if user and user.email_verified:
+        await email_service.send_password_reset_email(user)
+    
+    # Always return success to prevent email enumeration
+    return {"message": "If the email exists and is verified, a password reset link has been sent."}
+
+@router.get("/reset-password/{user_id}/{token}", status_code=status.HTTP_200_OK, name="reset_password_form", tags=["Login and Registration"])
+async def show_reset_password_form(user_id: UUID, token: str, db: AsyncSession = Depends(get_db)):
+    """
+    Display password reset form after clicking the reset link.
+    
+    - **user_id**: UUID of the user
+    - **token**: Password reset token sent to the user's email
+    """
+    logger.info(f"Showing password reset form for user_id: {user_id}")
+    
+    is_valid = await UserService.verify_password_reset_token(db, user_id, token)
+    
+    if not is_valid:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "message": "Invalid or expired password reset link",
+                "details": "The password reset link may be expired or has already been used."
+            }
+        )
+    
+    # In a real application, you would render an HTML form here
+    # For this API, we'll return instructions
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "message": "Password reset form",
+            "user_id": str(user_id),
+            "token": token,
+            "instructions": "Submit a POST request to /reset-password with user_id, token, and new_password"
+        }
+    )
+
+@router.post("/reset-password/", status_code=status.HTTP_200_OK, name="process_reset_password", tags=["Login and Registration"])
+async def process_reset_password(
+    user_id: UUID = Form(...),
+    token: str = Form(...),
+    new_password: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Process the password reset request.
+    
+    - **user_id**: UUID of the user
+    - **token**: Password reset token from email
+    - **new_password**: New password to set
+    """
+    logger.info(f"Processing password reset for user_id: {user_id}")
+    
+    success = await UserService.reset_password_with_token(db, user_id, token, new_password)
+    
+    if not success:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "message": "Failed to reset password",
+                "details": "The password reset link may be invalid or expired."
+            }
+        )
+    
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "message": "Password reset successful",
+            "details": "Your password has been updated. You can now log in with your new password."
+        }
+    )
