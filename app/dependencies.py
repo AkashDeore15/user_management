@@ -30,6 +30,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
+# In app/dependencies.py
 def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=401,

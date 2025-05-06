@@ -311,6 +311,8 @@ async def update_own_profile(
         UserResponse: The updated user profile with navigation links.
     """
     user_id = current_user.get("user_id")
+    logger = logging.getLogger(__name__)
+    logger.info(f"Updating profile for user with ID/email: {user_id}")
     
     # Convert email to user ID if necessary
     if "@" in user_id:  # If user_id is actually an email
@@ -318,15 +320,25 @@ async def update_own_profile(
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         user_id = user.id
-        
+    
     # Exclude role from update data for security
     update_data = profile_update.model_dump(exclude_unset=True)
     if "role" in update_data:
         del update_data["role"]
     
+    user = await UserService.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        
+    logger.info(f"Found user: {user.email}, ID: {user.id}, is_professional: {user.is_professional}")
+    
     updated_user = await UserService.update(db, user_id, update_data)
     if not updated_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    # Ensure we have the latest data
+    await db.refresh(updated_user)
+    logger.info(f"Updated user: {updated_user.email}, is_professional: {updated_user.is_professional}")
     
     return UserResponse.model_construct(
         id=updated_user.id,
@@ -339,6 +351,7 @@ async def update_own_profile(
         linkedin_profile_url=updated_user.linkedin_profile_url,
         role=updated_user.role,
         email=updated_user.email,
+        is_professional=updated_user.is_professional,
         last_login_at=updated_user.last_login_at,
         created_at=updated_user.created_at,
         updated_at=updated_user.updated_at,
