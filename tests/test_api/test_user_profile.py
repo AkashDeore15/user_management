@@ -3,6 +3,7 @@ from builtins import str
 import pytest
 from httpx import AsyncClient
 from app.models.user_model import User, UserRole
+from app.services.user_service import UserService
 
 @pytest.mark.asyncio
 async def test_update_own_profile(async_client, verified_user, user_token):
@@ -103,3 +104,56 @@ async def test_update_professional_status_user_not_found(async_client, admin_tok
     response = await async_client.put(f"/users/{non_existent_id}/professional-status?professional_status=true", headers=headers)
     
     assert response.status_code == 404  # Not Found
+
+# Add these tests to tests/test_api/test_user_profile.py
+
+@pytest.mark.asyncio
+async def test_full_profile_workflow(async_client, verified_user, admin_user, email_service):
+    """Test the entire user profile management workflow."""
+    # Create tokens directly in the test
+    from app.services.jwt_service import create_access_token
+    from datetime import timedelta
+    
+    # Generate a fresh token with verified_user's ID
+    user_token = create_access_token(
+        data={"sub": str(verified_user.id), "role": verified_user.role.name},
+        expires_delta=timedelta(minutes=30)
+    )
+    
+    admin_token = create_access_token(
+        data={"sub": str(admin_user.id), "role": admin_user.role.name},
+        expires_delta=timedelta(minutes=30)
+    )
+    
+    # 1. User updates their own profile
+    headers_user = {"Authorization": f"Bearer {user_token}"}
+    profile_update = {
+        "first_name": "John",
+        "last_name": "Developer",
+        "bio": "A passionate developer",
+        "github_profile_url": "https://github.com/johndeveloper",
+        "linkedin_profile_url": "https://linkedin.com/in/johndeveloper"
+    }
+    
+    response = await async_client.put("/profile/", json=profile_update, headers=headers_user)
+    assert response.status_code == 200
+    assert response.json()["first_name"] == profile_update["first_name"]
+    assert response.json()["github_profile_url"] == profile_update["github_profile_url"]
+    
+    # 2. Admin upgrades user to professional
+    headers_admin = {"Authorization": f"Bearer {admin_token}"}
+    upgrade_response = await async_client.put(
+        f"/users/{verified_user.id}/professional-status?professional_status=true",
+        headers=headers_admin
+    )
+    assert upgrade_response.status_code == 200
+    assert upgrade_response.json()["is_professional"] is True
+    
+    # 3. Verify user can still update their profile after upgrade
+    profile_update2 = {
+        "bio": "A professional developer with extensive experience"
+    }
+    response2 = await async_client.put("/profile/", json=profile_update2, headers=headers_user)
+    assert response2.status_code == 200
+    assert response2.json()["bio"] == profile_update2["bio"]
+    assert response2.json()["is_professional"] is True
