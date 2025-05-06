@@ -287,3 +287,60 @@ async def verify_email(user_id: UUID, token: str, db: AsyncSession = Depends(get
                 "details": "An unexpected error occurred while processing your verification request."
             }
         )
+
+@router.put("/profile/", response_model=UserResponse, tags=["User Profile"])
+async def update_own_profile(
+    profile_update: UserUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Update the authenticated user's profile information.
+    
+    This endpoint allows users to update their own profile fields such as 
+    name, bio, and social media links.
+    
+    Args:
+        profile_update: UserUpdate model with updated profile information.
+        request: The request object.
+        db: Database session.
+        current_user: The authenticated user's information.
+    
+    Returns:
+        UserResponse: The updated user profile with navigation links.
+    """
+    user_id = current_user.get("user_id")
+    
+    # Convert email to user ID if necessary
+    if "@" in user_id:  # If user_id is actually an email
+        user = await UserService.get_by_email(db, user_id)
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        user_id = user.id
+        
+    # Exclude role from update data for security
+    update_data = profile_update.model_dump(exclude_unset=True)
+    if "role" in update_data:
+        del update_data["role"]
+    
+    updated_user = await UserService.update(db, user_id, update_data)
+    if not updated_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    return UserResponse.model_construct(
+        id=updated_user.id,
+        nickname=updated_user.nickname,
+        first_name=updated_user.first_name,
+        last_name=updated_user.last_name,
+        bio=updated_user.bio,
+        profile_picture_url=updated_user.profile_picture_url,
+        github_profile_url=updated_user.github_profile_url,
+        linkedin_profile_url=updated_user.linkedin_profile_url,
+        role=updated_user.role,
+        email=updated_user.email,
+        last_login_at=updated_user.last_login_at,
+        created_at=updated_user.created_at,
+        updated_at=updated_user.updated_at,
+        links=create_user_links(updated_user.id, request)
+    )
