@@ -64,3 +64,42 @@ async def test_update_own_profile_role_change_attempt(async_client, verified_use
     assert response.status_code == 200
     # Verify role hasn't changed
     assert response.json()["role"] == "AUTHENTICATED"
+
+@pytest.mark.asyncio
+async def test_update_professional_status_as_admin(async_client, verified_user, admin_token, email_service):
+    """Test that an admin can upgrade a user to professional status."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    
+    response = await async_client.put(f"/users/{verified_user.id}/professional-status?professional_status=true", headers=headers)
+    
+    assert response.status_code == 200
+    assert response.json()["is_professional"] is True
+
+@pytest.mark.asyncio
+async def test_update_professional_status_as_manager(async_client, verified_user, manager_token, email_service):
+    """Test that a manager can upgrade a user to professional status."""
+    headers = {"Authorization": f"Bearer {manager_token}"}
+    
+    response = await async_client.put(f"/users/{verified_user.id}/professional-status?professional_status=true", headers=headers)
+    
+    assert response.status_code == 200
+    assert response.json()["is_professional"] is True
+
+@pytest.mark.asyncio
+async def test_update_professional_status_as_user(async_client, verified_user, user_token):
+    """Test that a regular user cannot upgrade another user to professional status."""
+    headers = {"Authorization": f"Bearer {user_token}"}
+    
+    response = await async_client.put(f"/users/{verified_user.id}/professional-status?professional_status=true", headers=headers)
+    
+    assert response.status_code == 403  # Forbidden
+
+@pytest.mark.asyncio
+async def test_update_professional_status_user_not_found(async_client, admin_token):
+    """Test handling of non-existent user."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    non_existent_id = "00000000-0000-0000-0000-000000000000"
+    
+    response = await async_client.put(f"/users/{non_existent_id}/professional-status?professional_status=true", headers=headers)
+    
+    assert response.status_code == 404  # Not Found

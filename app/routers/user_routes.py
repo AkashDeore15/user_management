@@ -344,3 +344,76 @@ async def update_own_profile(
         updated_at=updated_user.updated_at,
         links=create_user_links(updated_user.id, request)
     )
+
+@router.put("/users/{user_id}/professional-status", response_model=UserResponse, tags=["User Management Requires (Admin or Manager Roles)"])
+async def update_professional_status(
+    user_id: UUID, 
+    request: Request,
+    professional_status: bool = True,
+    db: AsyncSession = Depends(get_db),
+    email_service: EmailService = Depends(get_email_service),
+    current_user: dict = Depends(require_role(["ADMIN", "MANAGER"]))
+):
+    """
+    Update a user's professional status.
+    
+    This endpoint allows managers and admins to upgrade users to professional status.
+    
+    Args:
+        user_id: UUID of the user to update.
+        request: The request object.
+        professional_status: Boolean indicating the professional status (True for professional).
+        db: Database session.
+        email_service: Email service for sending notifications.
+        current_user: The authenticated manager or admin's information.
+    
+    Returns:
+        UserResponse: The updated user profile with navigation links.
+    """
+    # Fetch the user
+    user = await UserService.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    # Only update if status is different
+    if user.is_professional != professional_status:
+        # Update the professional status
+        user.update_professional_status(professional_status)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        
+        # Send email notification if upgraded to professional
+        if professional_status:
+            try:
+                # Prepare user data for email
+                user_data = {
+                    "name": user.first_name or user.nickname,
+                    "email": user.email,
+                    "verification_url": f"{settings.server_base_url}/users/{user.id}",
+                }
+                # Send the professional status upgrade email
+                await email_service.send_user_email(user_data, 'professional_upgrade')
+            except Exception as e:
+                # Log the error but don't fail the request
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send professional upgrade email: {str(e)}")
+    
+    # Return the updated user
+    return UserResponse.model_construct(
+        id=user.id,
+        nickname=user.nickname,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        bio=user.bio,
+        profile_picture_url=user.profile_picture_url,
+        github_profile_url=user.github_profile_url,
+        linkedin_profile_url=user.linkedin_profile_url,
+        role=user.role,
+        email=user.email,
+        is_professional=user.is_professional,
+        last_login_at=user.last_login_at,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        links=create_user_links(user.id, request)
+    )
