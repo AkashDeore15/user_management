@@ -7,7 +7,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=true \
     PIP_DEFAULT_TIMEOUT=100 \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
-    QR_CODE_DIR=/myapp/qr_codes
+    QR_CODE_DIR=/myapp/qr_codes \
+    COVERAGE_FILE=/tmp/.coverage
 
 WORKDIR /myapp
 
@@ -41,21 +42,26 @@ COPY --from=base /.venv /.venv
 ENV PATH="/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONFAULTHANDLER=1 \
-    QR_CODE_DIR=/myapp/qr_codes
+    QR_CODE_DIR=/myapp/qr_codes \
+    COVERAGE_FILE=/tmp/.coverage
 
 # Set the working directory
 WORKDIR /myapp
 
 # Create and switch to a non-root user
 RUN useradd -m myuser
-USER myuser
+
+# Create the QR code directory
+RUN mkdir -p ${QR_CODE_DIR} && \
+    # Important: Make the entire /myapp directory writable by the myuser
+    chown -R myuser:myuser /myapp && \
+    # Ensure /tmp is writable (it should be by default, but just to be sure)
+    chmod 1777 /tmp
 
 # Copy application code with appropriate ownership
 COPY --chown=myuser:myuser . .
 
-# Create qr_codes directory and ensure proper permissions
-USER root
-RUN mkdir -p ${QR_CODE_DIR} && chown -R myuser:myuser ${QR_CODE_DIR}
+# Switch to non-root user
 USER myuser
 
 # Inform Docker that the container listens on the specified port at runtime.
