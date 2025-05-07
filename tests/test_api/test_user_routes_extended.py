@@ -79,9 +79,11 @@ async def test_create_user_admin(async_client, admin_token, email_service):
         "role": UserRole.AUTHENTICATED.name
     }
     
-    response = await async_client.post("/users/", json=user_data, headers=headers)
-    assert response.status_code == 201
-    assert response.json()["email"] == user_data["email"]
+    # Mock the send_verification_email method to prevent actual SMTP connection
+    with patch('app.services.email_service.EmailService.send_verification_email', return_value=None):
+        response = await async_client.post("/users/", json=user_data, headers=headers)
+        assert response.status_code == 201
+        assert response.json()["email"] == user_data["email"]
 
 @pytest.mark.asyncio
 async def test_create_user_duplicate_email_admin(async_client, admin_token, verified_user, email_service):
