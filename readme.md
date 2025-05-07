@@ -1,53 +1,71 @@
+# User Management System: Project Reflection Report 
+## Github Project Link - [AkashDeore15/user_management](https://github.com/AkashDeore15/user_management)
 
+### Introduction
 
-# The User Management System Final Project: Your Epic Coding Adventure Awaits! 🎉✨🔥
+The User Management System project has been an exceptional learning experience that allowed me to work with modern web development technologies in a practical setting. This FastAPI-based system provided a comprehensive platform to understand and implement best practices in software development, from architecture design to testing and deployment.
+Technical Overview and Architecture
+The User Management System follows a well-structured, modular architecture that emphasizes separation of concerns. The system is built on FastAPI and incorporates several key components including SQLAlchemy ORM for database interactions, Alembic for migrations, JWT-based authentication, and comprehensive API endpoints for user management.
+Working on this project helped me gain hands-on experience with:
+•	Asynchronous programming in Python
+•	Role-based access control implementation
+•	Database modeling with SQLAlchemy
+•	Containerization with Docker
+•	Continuous Integration/Continuous Deployment workflows
 
-## Introduction: Buckle Up for the Ride of a Lifetime 🚀🎬
+### Quality Assurance Contributions
 
-Welcome to the User Management System project - an epic open-source adventure crafted by the legendary Professor Keith Williams for his rockstar students at NJIT! 🏫👨‍🏫⭐ This project is your gateway to coding glory, providing a bulletproof foundation for a user management system that will blow your mind! 🤯 You'll bridge the gap between the realms of seasoned software pros and aspiring student developers like yourselves. 
+For this project, I identified and resolved the following issues:
+1.	[Issue #1: Fixed user registration functionality](https://github.com/AkashDeore15/user_management/issues/1) - Implemented proper error handling for duplicate email addresses during registration.
+2.	[Issue #2: Email verification endpoint enhancement](https://github.com/AkashDeore15/user_management/issues/3) - Improved the verification process to correctly update user roles after email verification.
+3.	[Issue #3: User profile management bug fix](https://github.com/AkashDeore15/user_management/issues/5) - Resolved issues with the profile update endpoint to prevent unauthorized role changes.
+4.	[Issue #4: Authentication token handling improvement](https://github.com/AkashDeore15/user_management/issues/9) - Fixed token validation to properly restrict access based on user roles.
+5.	[Issue #5: Database transaction management](https://github.com/AkashDeore15/user_management/issues/11) - Enhanced error handling during database operations to prevent data inconsistencies.
 
-### [Instructor Video - Project Overview and Tips](https://youtu.be/gairLNAp6mA) 🎥
+### Test Coverage Enhancements
 
-- [Introduction to the system features and overview of the project - please read](system_documentation.md) 📚
-- [Project Setup Instructions](setup.md) ⚒️
-- [Features to Select From](features.md) 🛠️
-- [About the Project](about.md)🔥🌟
+I expanded the test suite with 10 new tests covering various aspects of the system, particularly focusing on user profile management, which was my selected feature. These tests ensure robust functionality across different components:
+1.	Test for user profile update validation
+2.	Test for professional status upgrade by admins
+3.	Test for professional status upgrade by managers
+4.	Test for preventing unauthorized professional status upgrades
+5.	Test for handling non-existent users in profile operations
+6.	Test for the complete user profile workflow
+7.	Test for URL validation in profile fields
+8.	Test for preventing role changes through profile updates
+9.	Test for database consistency after profile updates
+10.	Test for email notifications after professional status changes
 
-## Goals and Objectives: Unlock Your Coding Superpowers 🎯🏆🌟
+### Feature Implementation
 
-Get ready to ascend to new heights with this legendary project:
+I implemented the User Profile Management feature, which allows users to update their profile information and enables managers and admins to upgrade users to professional status. This implementation included:
+•	Creating API endpoints for users to update their profile fields
+•	Developing a separate endpoint for managers and admins to upgrade users to professional status
+•	Implementing validation for profile fields to ensure data integrity
+•	Adding email notifications for professional status upgrades
+•	Creating comprehensive tests to ensure the feature works as expected
 
-1. **Practical Experience**: Dive headfirst into a real-world codebase, collaborate with your teammates, and contribute to an open-source project like a seasoned pro! 💻👩‍💻🔥
-2. **Quality Assurance**: Develop ninja-level skills in identifying and resolving bugs, ensuring your code quality and reliability are out of this world. 🐞🔍⚡
-3. **Test Coverage**: Write additional tests to cover edge cases, error scenarios, and important functionalities - leave no stone unturned and no bug left behind! ✅🧪🕵️‍♂️
-4. **Feature Implementation**: Implement a brand new, mind-blowing feature and make your epic mark on the project, following best practices for coding, testing, and documentation like a true artisan. ✨🚀🎆
-5. **Collaboration**: Foster teamwork and collaboration through code reviews, issue tracking, and adhering to contribution guidelines - teamwork makes the dream work, and together you'll conquer worlds! 🤝💪🌍
-6. **Industry Readiness**: Prepare for the software industry by working on a project that simulates real-world development scenarios - level up your skills to super hero status  and become an unstoppable coding force! 🔝🚀🏆⚡
+### Deployment
 
-## Submission and Grading: Your Chance to Shine 📝✏️📈
+The project was successfully deployed to Docker Hub. The containerized application can be accessed at: [akashdeore15/user_management](https://hub.docker.com/repository/docker/akashdeore15/user_management)
+The deployment process utilized GitHub Actions for CI/CD, ensuring that every push to the main branch triggered automated testing and deployment.
 
-1. **Reflection Document**: Submit a 1-2 page Word document reflecting on your learnings throughout the course and your experience working on this epic project. Include links to the closed issues for the **5 QA issues, 10 NEW tests, and 1 Feature** you'll be graded on. Make sure your project successfully deploys to DockerHub and include a link to your Docker repository in the document - let your work speak for itself! 📄🔗💥
+### Learnings and Reflections
 
-2. **Commit History**: Show off your consistent hard work through your commit history like a true coding warrior. **Projects with less than 10 commits will get an automatic 0 - ouch!** 😬⚠️ A significant part of your project's evaluation will be based on your use of issues, commits, and following a professional development process like a boss - prove your coding prowess! 💻🔄🔥
+This project has significantly enhanced my understanding of:
+1.	Layered Architecture: The importance of separating concerns between database, service, and API layers.
+2.	Testing Practices: Writing effective tests that cover not just the happy path but also edge cases and error scenarios.
+3.	CI/CD: Implementing continuous integration and deployment pipelines using GitHub Actions.
+4.	Documentation: The value of clear, comprehensive documentation for APIs and system architecture.
+5.	Git Workflow: Proper use of issues, branches, and pull requests to manage feature development and bug fixes.
+Working on this project has been incredibly valuable in bridging the gap between theoretical knowledge and practical application. The experience of identifying issues, implementing fixes, and extending features in a real-world application has provided insights that would be impossible to gain through theoretical learning alone.
 
-3. **Deployability**: Broken projects that don't deploy to Dockerhub or pass all the automated tests on GitHub actions will face point deductions - nobody likes a buggy app! 🐞☠️ Show the world your flawless coding skills!
+### Conclusion
 
-## Managing the Project Workload: Stay Focused, Stay Victorious ⏱️🧠⚡
+The User Management System project has been a comprehensive learning experience that effectively simulated real-world software development challenges. The skills developed through this project—from technical programming abilities to project management and documentation—will be invaluable in my future career as a software engineer.
 
-This project requires effective time management and a well-planned strategy, but fear not - you've got this! Follow these steps to ensure a successful (and sane!) project outcome:
+### Dockerhub container screenshot
+![alt text](image.png)
 
-1. **Select a Feature**: [Choose a feature](features.md) from the provided list of additional improvements that sparks your interest and aligns with your goals like a laser beam. ✨⭐🎯 This is your chance to shine!
-
-2. **Quality Assurance (QA)**: Thoroughly test the system's major functionalities related to your chosen feature and identify at least 5 issues or bugs like a true detective. Create GitHub issues for each identified problem, providing detailed descriptions and steps to reproduce - the more detail, the merrier! 🔍🐞🕵️‍♀️ Leave no stone unturned!
-
-3. **Test Coverage Improvement**: Review the existing test suite and identify gaps in test coverage like a pro. Create 10 additional tests to cover edge cases, error scenarios, and important functionalities related to your chosen feature. Focus on areas such as user registration, login, authorization, and database interactions. Simulate the setup of the system as the admin user, then creating users, and updating user accounts - leave no stone unturned, no bug left behind! ✅🧪🔍🔬 Become the master of testing!
-
-4. **New Feature Implementation**: Implement your chosen feature, following the project's coding practices and architecture like a coding ninja. Write appropriate tests to ensure your new feature is functional and reliable like a rock. Document the new feature, including its usage, configuration, and any necessary migrations - future you will thank you profusely! 🚀✨📝👩‍💻⚡ Make your mark on this project!
-
-5. **Maintain a Working Main Branch**: Throughout the project, ensure you always have a working main branch deploying to Docker like a well-oiled machine. This will prevent any last-minute headaches and ensure a smooth submission process - no tears allowed, only triumphs! 😊🚢⚓ Stay focused, stay victorious!
-
-Remember, it's more important to make something work reliably and be reasonably complete than to implement an overly complex feature. Focus on creating a feature that you can build upon or demonstrate in an interview setting - show off your skills like a rockstar! 💪🚀🎓
-
-Don't forget to always have a working main branch deploying to Docker at all times. If you always have a working main branch, you will never be in jeopardy of receiving a very disappointing grade :-). Keep that main branch shining bright!
-
-Let's embark on this epic coding adventure together and conquer the world of software engineering! You've got this, coding rockstars! 🚀🌟✨
+### Test Coverage
+![alt text](image-1.png)
