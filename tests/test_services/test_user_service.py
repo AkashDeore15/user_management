@@ -85,12 +85,24 @@ async def test_delete_user_does_not_exist(db_session):
     assert deletion_success is False
 
 # Test listing users with pagination
+# Test listing users with pagination
 async def test_list_users_with_pagination(db_session, users_with_same_role_50_users):
+    # First, verify we have 50 users in the database
+    total_users = await UserService.count(db_session)
+    assert total_users >= 50, "Expected at least 50 users in the database"
+    
+    # Test pagination with different page sizes
     users_page_1 = await UserService.list_users(db_session, skip=0, limit=10)
     users_page_2 = await UserService.list_users(db_session, skip=10, limit=10)
-    assert len(users_page_1) == 10
-    assert len(users_page_2) == 10
-    assert users_page_1[0].id != users_page_2[0].id
+    
+    # Verify page sizes
+    assert len(users_page_1) == 10, "First page should contain 10 users"
+    assert len(users_page_2) == 10, "Second page should contain 10 users"
+    
+    # Verify different pages have different users (no overlaps)
+    page1_ids = {str(user.id) for user in users_page_1}
+    page2_ids = {str(user.id) for user in users_page_2}
+    assert not page1_ids.intersection(page2_ids), "Users should not appear on multiple pages"
 
 # Test registering a user with valid data
 async def test_register_user_with_valid_data(db_session, email_service):

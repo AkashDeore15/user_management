@@ -165,13 +165,15 @@ async def unverified_user(db_session):
 async def users_with_same_role_50_users(db_session):
     users = []
     for i in range(50):
-        # Make sure nicknames are unique by appending a counter
-        unique_nickname = f"{fake.user_name()}_{i}"  
+        # Make sure both nicknames and emails are unique by appending a counter
+        unique_nickname = f"{fake.user_name()}_{i}"
+        unique_email = f"user_{i}_{fake.email()}"  # Ensure email uniqueness
+        
         user_data = {
             "nickname": unique_nickname,
             "first_name": fake.first_name(),
             "last_name": fake.last_name(),
-            "email": fake.email(),
+            "email": unique_email,  # Use the unique email
             "hashed_password": fake.password(),
             "role": UserRole.AUTHENTICATED,
             "email_verified": False,
